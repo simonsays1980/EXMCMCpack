@@ -1,0 +1,15 @@
+PKG_CPPFLAGS = -DSCYTHE_COMPILE_DIRECT -DSCYTHE_DEBUG=0 -DSCYTHE_RPACK -DHAVE_TRUNC @MV_HAVE_IEEEFP_H@ @MV_HAVE_TRUNC@ 
+
+OBJECTS.include.scythestat.rng = include/scythestat/rng/lecuyer.o
+OBJECTS.root = MCMCFinMixmetrop1R.o
+
+OBJECTS = $(OBJECTS.include.scythestat.rng) $(OBJECTS.root) 
+
+all: before $(SHLIB) after
+
+clean: 
+	rm -f $(OBJECTS)
+
+before: clean
+
+after: 
