@@ -1,9 +1,19 @@
 PKG_CPPFLAGS = -DSCYTHE_COMPILE_DIRECT -DSCYTHE_DEBUG=0 -DSCYTHE_RPACK -DHAVE_TRUNC @MV_HAVE_IEEEFP_H@ @MV_HAVE_TRUNC@ 
 
 OBJECTS.include.scythestat.rng = include/scythestat/rng/lecuyer.o
-OBJECTS.root = MCMCFinMixmetrop1R.o
+OBJECTS.root = HMMmultivariateGaussian.o HMMpanelFE.o HMMpanelRE.o \
+	MCMCFinMixmetrop1R.o MCMCFinMixmetropTemper.o \
+	MCMCSVDreg.o MCMCbinaryChange.o MCMCdynamicEI.o MCMCdynamicIRT1d-b.o \
+	MCMCdynamicIRT1d.o MCMCfactanal.o MCMChierBetaBinom.o MCMChierEI.o \
+	MCMChlogit.o MCMChpoisson.o MCMChregress.o MCMCirt1d.o \
+	MCMCirtHier1d.o MCMCirtKdHet.o MCMCirtKdRob.o MCMClogit.o \
+	MCMClogituserprior.o MCMCmetrop1R.o MCMCmixfactanal.o MCMCmnlMH.o \
+        MCMCmnlslice.o MCMCoprobit.o MCMCoprobitChange.o MCMCordfactanal.o \
+	MCMCpoisson.o MCMCpoissonChange.o MCMCprobit.o MCMCprobitChange.o \
+	MCMCprobitres.o MCMCquantreg.o MCMCregress.o MCMCresidualBreakAnalysis.o \
+	MCMCtobit.o SSVSquantreg.o   
 
-OBJECTS = $(OBJECTS.include.scythestat.rng) $(OBJECTS.root) 
+OBJECTS = $(OBJECTS.include.scythestat.rng) $(OBJECTS.root)
 
 all: before $(SHLIB) after
 

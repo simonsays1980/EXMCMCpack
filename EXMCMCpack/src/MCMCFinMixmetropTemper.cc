@@ -1,4 +1,4 @@
-//////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 // MCMCmetrop1R.cc samples from a user-written posterior code in R using a
 // random walk Metropolis algorithm
 //
@@ -24,15 +24,15 @@
 //    and Jong Hee Park
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef MCMCFINMIXMETROP1R_CC
-#define MCMCFINMIXMETROP1R_CC
+#ifndef MCMCFINMIXMETROPTEMPER_CC
+#define MCMCFINMIXMETROPTEMPER_CC
 
-#include "matrix.h"
-#include "distributions.h"
-#include "stat.h"
-#include "la.h"
-#include "ide.h"
-#include "smath.h"
+#include "include/scythestat/matrix.h"
+#include "include/scythestat/distributions.h"
+#include "include/scythestat/stat.h"
+#include "include/scythestat/la.h"
+#include "include/scythestat/ide.h"
+#include "include/scythestat/smath.h"
 #include "MCMCrng.h"
 #include "MCMCfcds.h"
 
@@ -47,7 +47,7 @@ using namespace std;
 using namespace scythe;
 
 // function that evaluatees the user supplied R function
-double user_fun_evalMix(SEXP fun, SEXP vartheta, SEXP myframe) {
+double user_fun_evalTemper(SEXP fun, SEXP vartheta, SEXP myframe) {
   
   SEXP R_fcall;
   if(!isFunction(fun)) error("`fun' must be a function");
@@ -68,8 +68,8 @@ double user_fun_evalMix(SEXP fun, SEXP vartheta, SEXP myframe) {
 template <typename RNGTYPE>
 void MCMCmetrop1R_impl (rng<RNGTYPE>& stream, SEXP& fun, 
                         SEXP& vartheta, unsigned int weights_start, SEXP& myframe,
-                        unsigned int burnin,
-                        unsigned int mcmc, unsigned int thin,
+                        unsigned int burnin, unsigned int mcmc, 
+			unsigned int temper, unsigned int thin,
                         unsigned int verbose, bool logfun,
                         const Matrix<>& propvar, SEXP& sample_SEXP)
 {
@@ -90,7 +90,8 @@ void MCMCmetrop1R_impl (rng<RNGTYPE>& stream, SEXP& fun,
   vartheta_M = t(vartheta_M); // column vector!
 
   // evaluate userfun at starting value
-  double userfun_cur =  user_fun_evalMix(fun, vartheta, myframe);
+  double ratio = 0;
+  double userfun_cur =  user_fun_evalTemper(fun, vartheta, myframe);
   if (! logfun) 
     userfun_cur = std::log(userfun_cur);
   
@@ -100,6 +101,45 @@ void MCMCmetrop1R_impl (rng<RNGTYPE>& stream, SEXP& fun,
   unsigned int accepts = 0;
   for (unsigned int iter = 0; iter < tot_iter; ++iter) {
 
+    
+    /* Tempering */
+    if(stream() < temper.omega) {
+    
+	for(unsigned int m = 0; m < temper; ++m) {
+        
+		Matrix <> theta_temper_can_M = scythe::exp(scythe::log(vartheta_M(0, 0, weights_start - 2, 0)) + 
+			propc(0, 0, weights_start - 2, weights_start - 2) * stream.rnorm(weights_start - 1, 1, 0, 1));
+		
+		weights_temper_can_M = scythe::log(vartheta_M(weights_start - 1, 0, npar - 1, 0)) 
+			- scythe::log(1 - vartheta_M(weights_start - 1, 0, npar - 1, 0)) + propc(weights_start - 1, npar - 1, weights_start - 1, npar - 1)
+			* stream.rnorm(npar - weights_start + 1, 1, 0, 1);
+
+		Matrix <> weights_can_temper_L = scythe::log(1 - sumc(vartheta_M(weights_start - 1, 0, npar - 1, 0))) 
+			- scythe::log(sumc(vartheta_M(weights_start - 1, 0, npar - 1, 0))) + propc(npar - 1, npar - 1) * stream.rnorm(1, 1, 0, 1);
+
+		weights_can_temper_M = scythe::exp(weights_can_temper_M)/(scythe::exp(weights_can_temper_M) + 1);
+		weights_can_temper_L = scythe::exp(weights_can_temper_L)/(scythe::exp(weights_can_temper_L) + 1); 
+
+		weights_can_temper_M = weights_can_temper_M(sumc(weights_can_temper_M) + weights_can_temper_L);
+
+		Matrix <> vartheta_can_temper_M = scythe::rbind(theta_can_temper_M, weights_can_temper_M);
+
+		// Generate SEXP for tempered candidate 
+                SEXP vartheta_temper_can;
+		PROTECT(vartheta_can_temper = allocVector(REALSXP, npar));
+		for (unsigned int i = 0; i < npar; ++i) {
+		
+			REAL(vartheta_temper_can)[i] = vartheta_can_temper_M(i);
+		} 
+
+		// Evaluate user function 
+		double userfun_temper_can = user_fun_evalTemper(fun, vartheta_temper_can, myframe);
+		if(! logfun)
+			userfun_can = std::log(userfun_temper_can);
+		// Use difference between powered userfun and same parameter!!!!
+		ratio += std::exp(userfun_temper_can - userfun_temper_current);
+        }
+    }
     // generate candidate value of theta (log-transformed)
     Matrix <> theta_can_M = scythe::exp(scythe::log(vartheta_M(0, 0, weights_start - 2, 0)) + propc(0, 0, weights_start - 2, weights_start - 2)
     		* stream.rnorm(weights_start - 1, 1, 0, 1));
@@ -115,7 +155,7 @@ void MCMCmetrop1R_impl (rng<RNGTYPE>& stream, SEXP& fun,
     weights_can_M = scythe::exp(weights_can_M)/(scythe::exp(weights_can_M) + 1);
     weights_can_L = scythe::exp(weights_can_L)/(scythe::exp(weights_can_L) + 1);
 
-	// normalize weights
+    // normalize weights
     weights_can_M = weights_can_M/(sumc(weights_can_M) + weights_can_L);
 
     Matrix <> vartheta_can_M = scythe::rbind(theta_can_M, weights_can_M);
@@ -127,7 +167,7 @@ void MCMCmetrop1R_impl (rng<RNGTYPE>& stream, SEXP& fun,
       REAL(vartheta_can)[i] = vartheta_can_M(i);
     }
     // evaluate user function fun at candidate theta
-    double userfun_can = user_fun_evalMix(fun, vartheta_can, myframe);
+    double userfun_can = user_fun_evalTemper(fun, vartheta_can, myframe);
     if (! logfun)
       userfun_can = std::log(userfun_can);
     const double ratio = std::exp(userfun_can - userfun_cur);
@@ -185,8 +225,8 @@ void MCMCmetrop1R_impl (rng<RNGTYPE>& stream, SEXP& fun,
 extern "C" {
 
   // the function that actually does the sampling and returns a value to R
-  SEXP MCMCFinMixmetrop1R_cc(SEXP fun, SEXP theta, SEXP weights_start_R, SEXP myframe, SEXP burnin_R,
-		       SEXP mcmc_R, SEXP thin_R, 
+  SEXP MCMCFinMixmetropTemper_cc(SEXP fun, SEXP theta, SEXP weights_start_R, SEXP myframe, SEXP burnin_R,
+		       SEXP mcmc_R, SEXP temper_R, SEXP thin_R, 
 		       SEXP verbose, SEXP lecuyer_R, SEXP seedarray_R,
 		       SEXP lecuyerstream_R, SEXP logfun, 
 		       SEXP propvar_R)
@@ -214,7 +254,7 @@ extern "C" {
     Rprintf("I am arrived");
     MCMCPACK_PASSRNG2MODEL(MCMCmetrop1R_impl, fun, theta, weights_start, myframe,
 			   INTEGER(burnin_R)[0], INTEGER(mcmc_R)[0], 
-			   INTEGER(thin_R)[0],
+			   INTEGER(temper_R)[0], INTEGER(thin_R)[0],
 			   INTEGER(verbose)[0], INTEGER(logfun)[0], 
 			   propvar, sample_SEXP);
     UNPROTECT(1);

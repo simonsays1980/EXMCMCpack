@@ -33,13 +33,13 @@
 
 #include <iostream>
 
-#include "matrix.h"
-#include "algorithm.h"
-#include "distributions.h"
-#include "stat.h"
-#include "la.h"
-#include "ide.h"
-#include "smath.h"
+#include "include/scythestat/matrix.h"
+#include "include/scythestat/algorithm.h"
+#include "include/scythestat/distributions.h"
+#include "include/scythestat/stat.h"
+#include "include/scythestat/la.h"
+#include "include/scythestat/ide.h"
+#include "include/scythestat/smath.h"
 #include "MCMCrng.h"
 #include "MCMCfcds.h"
 

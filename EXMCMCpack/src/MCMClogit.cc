@@ -30,12 +30,12 @@
 #include <iostream>
 #include "MCMCrng.h"
 #include "MCMCfcds.h"
-#include "matrix.h"
-#include "distributions.h"
-#include "stat.h"
-#include "la.h"
-#include "ide.h"
-#include "smath.h"
+#include "include/scythestat/matrix.h"
+#include "include/scythestat/distributions.h"
+#include "include/scythestat/stat.h"
+#include "include/scythestat/la.h"
+#include "include/scythestat/ide.h"
+#include "include/scythestat/smath.h"
 
 #include <R.h>           // needed to use Rprintf()
 #include <R_ext/Utils.h> // needed to allow user interrupts
